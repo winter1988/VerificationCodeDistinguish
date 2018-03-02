@@ -37,7 +37,7 @@ def gen_captcha_text_and_image():
 
 def crack_captcha_cnn(w_alpha=0.01,b_alpha=0.1):
     #卷积为四维 X = [None, IMAGE_HEIGHT * IMGAGE_WIDTH ]
-    x = tf.reshape(X, shape=[-1, IMAGE_HEIGHT, IMGAGE_WIDTH, 1])
+    x = tf.reshape(X, shape=[-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1])
     #layer 1
     w_c1 = tf.Variable(w_alpha*tf.random_normal([3, 3, 1, 32]))
     b_c1 = tf.Variable(b_alpha*tf.random_normal([32]))
@@ -71,8 +71,8 @@ def crack_captcha_cnn(w_alpha=0.01,b_alpha=0.1):
     dense = tf.nn.relu(tf.add(tf.matmul(dense, w_d), b_d))
     dense = tf.nn.dropout(dense, keep_prob)
 
-    w_out = tf.Variable(w_alpha * tf.random_normal([1024, MAX_CAPTCHA * CHRA_SET_LEN]))
-    b_out = tf.Variable(b_alpha * tf.random_normal([MAX_CAPTCHA * CHRA_SET_LEN]))
+    w_out = tf.Variable(w_alpha * tf.random_normal([1024, MAX_CAPTCHA * CHAR_SET_LEN]))
+    b_out = tf.Variable(b_alpha * tf.random_normal([MAX_CAPTCHA * CHAR_SET_LEN]))
     out = tf.add(tf.matmul(dense, w_out), b_out)
 
     return out
@@ -83,7 +83,7 @@ def text2vec(text):
     if text_len > MAX_CAPTCHA:
         raise ValueError('验证码最长4个字符')
 
-    vector = np.zeros(MAX_CAPTCHA * CHRA_SET_LEN)
+    vector = np.zeros(MAX_CAPTCHA * CHAR_SET_LEN)
 
     def char2pos(c):
         if c == '_':
@@ -99,7 +99,7 @@ def text2vec(text):
         return k
 
     for i, c in enumerate(text):
-        idx = i * CHRA_SET_LEN + char2pos(c)
+        idx = i * CHAR_SET_LEN + char2pos(c)
         vector[idx] = 1
     return vector
 
@@ -117,8 +117,8 @@ def conver2gray(img):
 
 
 def get_next_batch(batch_size=128):
-    batch_x = np.zeros([batch_size,IMAGE_HEIGHT*IMGAGE_WIDTH])
-    batch_y = np.zeros([batch_size,MAX_CAPTCHA*CHRA_SET_LEN])
+    batch_x = np.zeros([batch_size, IMAGE_HEIGHT * IMAGE_WIDTH])
+    batch_y = np.zeros([batch_size, MAX_CAPTCHA * CHAR_SET_LEN])
 
     def wrap_gen_captcha_text_and_image():
         while True:
@@ -141,9 +141,9 @@ def train_crack_captcha_cnn():
     loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=output, labels=Y))
     #cost
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
-    predict = tf.reshape(output, [-1, MAX_CAPTCHA, CHRA_SET_LEN])
+    predict = tf.reshape(output, [-1, MAX_CAPTCHA, CHAR_SET_LEN])
     max_idx_p = tf.argmax(predict, 2)
-    max_idx_l = tf.argmax(tf.reshape(Y, [-1, MAX_CAPTCHA, CHRA_SET_LEN]), 2)
+    max_idx_l = tf.argmax(tf.reshape(Y, [-1, MAX_CAPTCHA, CHAR_SET_LEN]), 2)
     correct_pred = tf.equal(max_idx_p, max_idx_l)
     accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
     saver = tf.train.Saver()
@@ -183,7 +183,7 @@ def crack_captcha(captcha_image):
 
     saver = tf.train.Saver()
     with tf.Session() as sess:
-        saver.restore(sess, "./model/crack_capcha.model-810")
+        saver.restore(sess, "./model/crack_capcha.model-1710")
 
         predict = tf.argmax(tf.reshape(output, [-1, MAX_CAPTCHA, CHAR_SET_LEN]), 2)
         text_list = sess.run(predict, feed_dict={X: [captcha_image], keep_prob: 1})
@@ -192,29 +192,29 @@ def crack_captcha(captcha_image):
 
 
 if __name__ == '__main__':
-    train = 0
+    train = 1
+    numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    IMAGE_HEIGHT = 60
+    IMAGE_WIDTH = 160
+    char_set = numbers
+    CHAR_SET_LEN = len(char_set)
     if train == 0:
-        numbers = ['0','1','2','3','4','5','6','7','8','9']
+
         text, image = gen_captcha_text_and_image()
         #图像shape
-        IMAGE_HEIGHT = 60
-        IMGAGE_WIDTH = 160
+
         MAX_CAPTCHA = len(text)
         #文本转换成向量
-        char_set = number
-        CHRA_SET_LEN = len(char_set)
-        X = tf.placeholder(tf.float32, [None, IMAGE_HEIGHT*IMGAGE_WIDTH])
-        Y = tf.placeholder(tf.float32, [None, MAX_CAPTCHA*CHRA_SET_LEN])
+
+        X = tf.placeholder(tf.float32, [None, IMAGE_HEIGHT * IMAGE_WIDTH])
+        Y = tf.placeholder(tf.float32, [None, MAX_CAPTCHA * CHAR_SET_LEN])
         keep_prob = tf.placeholder(tf.float32)
 
         train_crack_captcha_cnn()
 
     if train == 1:
-        number = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-        IMAGE_HEIGHT = 60
-        IMAGE_WIDTH = 160
-        char_set = number
-        CHAR_SET_LEN = len(char_set)
+
+
         text, image = gen_captcha_text_and_image()
 
         f = plt.figure()
